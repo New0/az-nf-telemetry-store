@@ -1,0 +1,17 @@
+{
+  "name": "az-nf-telemetry-store",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"No tests yet...\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "@supabase/supabase-js": "^2.43.5",
+    "airtable": "^0.12.2",
+    "mysql2": "^3.10.1"
+  },
+  "main": "src/functions/*.js"
+}
