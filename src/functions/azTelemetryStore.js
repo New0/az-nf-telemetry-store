@@ -7,10 +7,10 @@ const fetchDataFromAWS = async () => {
 
     try {  
         const connection = await mysql.createConnection({
-            host: 'nf-telemetry-01.ca5a8eropr1q.us-east-1.rds.amazonaws.com',
+            host: process.env.aws_url,
             user: process.env.aws_user,
             password: process.env.aws_key,
-            database: 'vapor'
+            database: process.env.aws_db
         });
         // Connect to MySQL
         connection.connect();
@@ -24,32 +24,34 @@ const fetchDataFromAWS = async () => {
 };
 
 const sendToAirtable = async (data) => {
-    console.log(process.env.airtable_key);
-    const base = new Airtable({ apiKey: process.env.airtable_key }).base('appR1N9ZuliX4gH8w/tbleVbDR6RihTcXkN');
+
+    const base = new Airtable({ apiKey: process.env.airtable_key }).base(process.env.airtable_db);
 
     let records = [];
-    await data[0].forEach(element => {
-        console.log(element.name);
-        base('Basic').create({
-            "Name": element.name,
-            "Path": element.path,
-            "tags": element.tags,
-            "url": element.url,
-            "type": element.type
-        }, (err, record) => {
-            if (err) { 
-                console.error(err);
-                records.push("error");
-                return; 
+    data[0].forEach( element => {
+        records.push({
+            "fields": {
+                "Name": element.name,
+                "Path": element.path,
+                "tags": element.tags,
+                "url": element.url,
+                "type": element.type
             }
-            
-            console.log(record);
-            records.push(record.id)
-            console.log('Record created!');
         });
     });
 
-    return records;
+    const {err, record} = await base(process.env.airtable_tble).create(records);
+
+    if (err) { 
+        console.error(err);
+        records.push("error");
+        return; 
+    } else {
+        console.log(record);
+        return record;
+        console.log('Record created!');
+    }
+    
 };
 
 const sendToSupabase = async (rds) => {
@@ -77,6 +79,7 @@ const sendToSupabase = async (rds) => {
     } else {
         console.log(data);
         console.log('Data inserted successfully');
+        return data;
     }
 
 };
@@ -88,14 +91,31 @@ app.http('azTelemetryStore', {
 
         context.log(`azTelemetryStore function processed request for url "${request.url}"`);
 
-        //const name = request.query.get('name') || await request.text() || 'world';
+        const action = request.query.get('action');
 
-        const pluginsData = await fetchDataFromAWS();
+        if(!action) {
 
-        const airtableRecords = await sendToAirtable( pluginsData );
+            return new BadRequestObjectResult("Action not set.");
 
-        const supabaseRecords = await sendToSupabase( pluginsData );
+        } else {
 
-        return { body: 'Sending' };
+            //Get data
+            const pluginsData = await fetchDataFromAWS();
+
+            // Dispatch data based on action
+            if(action === "airtable"){
+
+                await sendToAirtable( pluginsData );
+
+            } else if(action === "supabase"){
+
+                await sendToSupabase( pluginsData );
+
+            } else {
+
+                return new BadRequestObjectResult("Unknown action.");
+                
+            }
+        }
     }
 });
