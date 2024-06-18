@@ -48,8 +48,8 @@ const sendToAirtable = async (data) => {
         return; 
     } else {
         console.log(record);
-        return record;
         console.log('Record created!');
+        return record;
     }
     
 };
